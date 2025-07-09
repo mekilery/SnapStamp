@@ -296,7 +296,7 @@ export function SnapStampClient() {
               
               <div className="space-y-2">
                 <Label htmlFor="time-format" className="flex items-center gap-2"><Clock className="h-4 w-4"/> Step 2: Choose Time Format</Label>
-                <div className="flex flex-col sm:flex-row items-center gap-2">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                    <DatePicker date={selectedDateTime} onDateChange={handleDateChange} />
                    <TimePicker date={selectedDateTime} onDateChange={handleTimeChange} />
                 </div>
@@ -323,7 +323,7 @@ export function SnapStampClient() {
                     {isLoadingLocation ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
                   </Button>
                 </div>
-                <div className="flex flex-col sm:flex-row gap-2">
+                <div className="space-y-2">
                   <Input
                     placeholder="Fetching location..."
                     value={locationInput}
@@ -337,9 +337,9 @@ export function SnapStampClient() {
                       });
                     }}
                     disabled={isLoadingLocation}
-                    className="flex-grow"
+                    className="w-full"
                   />
-                   <Button variant="outline" onClick={() => setMapDialogOpen(true)} className="w-full sm:w-auto">
+                   <Button variant="outline" onClick={() => setMapDialogOpen(true)} className="w-full">
                     Change
                   </Button>
                 </div>
