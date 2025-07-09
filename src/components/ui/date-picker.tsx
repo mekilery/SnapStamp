@@ -13,8 +13,6 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 
 interface DatePickerProps {
   date: Date | undefined;
@@ -28,7 +26,7 @@ export function DatePicker({ date, onDateChange }: DatePickerProps) {
         <Button
           variant={"outline"}
           className={cn(
-            "w-full justify-start text-left font-normal",
+            "w-full justify-start text-left font-normal flex-grow",
             !date && "text-muted-foreground"
           )}
         >

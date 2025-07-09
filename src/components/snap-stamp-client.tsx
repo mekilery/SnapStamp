@@ -12,7 +12,8 @@ import {
   RefreshCw,
 } from "lucide-react";
 import { MapDialog } from "@/components/ui/map-dialog";
-import { DatePickerWithTime } from "@/components/ui/date-picker-with-time";
+import { DatePicker } from "@/components/ui/date-picker";
+import { TimePicker } from "@/components/ui/time-picker";
 import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
 import {
@@ -209,6 +210,41 @@ export function SnapStampClient() {
     setMapDialogOpen(false);
   };
 
+  const handleDateChange = (newDate: Date | undefined) => {
+    if (!newDate) {
+      setSelectedDateTime(undefined);
+      return;
+    }
+    const current = selectedDateTime || new Date();
+    const updatedDate = new Date(
+      newDate.getFullYear(),
+      newDate.getMonth(),
+      newDate.getDate(),
+      current.getHours(),
+      current.getMinutes(),
+      current.getSeconds()
+    );
+    setSelectedDateTime(updatedDate);
+  };
+
+  const handleTimeChange = (newTime: Date | undefined) => {
+    if (!newTime) {
+      // If time is cleared, what should happen?
+      // For now, let's just ignore it. If we set to undefined, the whole thing disappears.
+      return;
+    }
+    const current = selectedDateTime || new Date();
+    const updatedDate = new Date(
+      current.getFullYear(),
+      current.getMonth(),
+      current.getDate(),
+      newTime.getHours(),
+      newTime.getMinutes(),
+      newTime.getSeconds()
+    );
+    setSelectedDateTime(updatedDate);
+  };
+
 
   return (
     <>
@@ -261,9 +297,11 @@ export function SnapStampClient() {
               <div className="space-y-2">
                 <Label htmlFor="time-format" className="flex items-center gap-2"><Clock className="h-4 w-4"/> Step 2: Choose Time Format</Label>
                 <div className="flex flex-col sm:flex-row items-center gap-2">
-                  <DatePickerWithTime date={selectedDateTime} onDateChange={setSelectedDateTime} />
-                  <Select value={timeFormat} onValueChange={setTimeFormat}>
-                  <SelectTrigger id="time-format" className="w-full sm:w-auto flex-grow">
+                   <DatePicker date={selectedDateTime} onDateChange={handleDateChange} />
+                   <TimePicker date={selectedDateTime} onDateChange={handleTimeChange} />
+                </div>
+                <Select value={timeFormat} onValueChange={setTimeFormat}>
+                  <SelectTrigger id="time-format" className="w-full">
                     <SelectValue placeholder="Select time format" />
                   </SelectTrigger>
                   <SelectContent>
@@ -274,7 +312,6 @@ export function SnapStampClient() {
                     ))}
                   </SelectContent>
                 </Select>
-                </div>
               </div>
               
               <Separator />
