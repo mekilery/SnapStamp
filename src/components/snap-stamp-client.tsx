@@ -45,7 +45,7 @@ export function SnapStampClient() {
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [photoPreviewUrl, setPhotoPreviewUrl] = useState<string | null>(null);
   
-  const [selectedDateTime, setSelectedDateTime] = useState<Date | undefined>(() => new Date());
+  const [selectedDateTime, setSelectedDateTime] = useState<Date | undefined>();
   const [timeFormat, setTimeFormat] = useState(timeFormats[0].value);
 
   const [locationInput, setLocationInput] = useState<string>("");
@@ -82,6 +82,7 @@ export function SnapStampClient() {
   }, [toast]);
 
   useEffect(() => {
+    setSelectedDateTime(new Date());
     fetchLocation();
   }, [fetchLocation]);
 
@@ -146,6 +147,7 @@ export function SnapStampClient() {
   const handleLocationSelect = (address: string, coords: GeolocationCoordinates) => {
     setLocationInput(address);
     setLocationInfo({ address, coords });
+    setMapDialogOpen(false);
   };
 
 
@@ -155,6 +157,7 @@ export function SnapStampClient() {
         isOpen={isMapDialogOpen}
         onClose={() => setMapDialogOpen(false)}
         onLocationSelect={handleLocationSelect}
+        currentLocation={locationInfo}
       />
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-8">
         <div className="lg:col-span-3">
