@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import {
   Dialog,
   DialogContent,
@@ -14,6 +14,7 @@ import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2 } from "lucide-react";
 import { ScrollArea } from "./scroll-area";
+import { GoogleMap, useJsApiLoader, StandaloneSearchBox, Marker } from "@react-google-maps/api";
 
 interface LocationDetails {
     road: string;
@@ -27,119 +28,176 @@ interface MapDialogProps {
   onLocationSelect: (address: string, coords: GeolocationCoordinates, details: LocationDetails) => void;
 }
 
-interface Suggestion {
-  place_id: number;
-  display_name: string;
-  lat: string;
-  lon: string;
-  address: {
-    road?: string;
-    city?: string;
-    town?: string;
-    village?: string;
-    country?: string;
-  }
-}
+const containerStyle = {
+  width: '100%',
+  height: '400px',
+  borderRadius: '0.5rem'
+};
+
+const libraries: "places"[] = ["places"];
 
 export function MapDialog({ isOpen, onClose, onLocationSelect }: MapDialogProps) {
-  const [searchQuery, setSearchQuery] = useState("");
-  const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
+  const [map, setMap] = useState<google.maps.Map | null>(null);
+  const [center, setCenter] = useState({ lat: 51.5072, lng: -0.1276 });
+  const [markerPosition, setMarkerPosition] = useState<{lat: number, lng: number} | null>(null);
+  const searchBoxRef = useRef<google.maps.places.SearchBox | null>(null);
+  const [isMapLoading, setMapLoading] = useState(true);
+
   const { toast } = useToast();
 
-  const handleSearch = useCallback(async () => {
-    if (!searchQuery) return;
-    setIsLoading(true);
-    try {
-      const response = await fetch(
-        `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(
-          searchQuery
-        )}&format=json&addressdetails=1`
-      );
-      const data = await response.json();
-      setSuggestions(data);
-    } catch (error) {
+  const { isLoaded, loadError } = useJsApiLoader({
+    googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || "",
+    libraries,
+  });
+
+  const onMapLoad = useCallback((mapInstance: google.maps.Map) => {
+    setMap(mapInstance);
+    setMapLoading(false);
+  }, []);
+
+  const onPlacesChanged = () => {
+    if (searchBoxRef.current && map) {
+      const places = searchBoxRef.current.getPlaces();
+      if (places && places.length > 0) {
+        const place = places[0];
+        if (place.geometry && place.geometry.location) {
+          const location = place.geometry.location;
+          const newCenter = { lat: location.lat(), lng: location.lng() };
+          map.panTo(newCenter);
+          setMarkerPosition(newCenter);
+          
+          const geocoder = new google.maps.Geocoder();
+          geocoder.geocode({ location }, (results, status) => {
+            if (status === 'OK' && results && results[0]) {
+              handleSelect(results[0]);
+            }
+          });
+        }
+      }
+    }
+  };
+
+  const handleMapClick = (e: google.maps.MapMouseEvent) => {
+    if (e.latLng) {
+      const location = e.latLng;
+      setMarkerPosition({ lat: location.lat(), lng: location.lng() });
+      const geocoder = new google.maps.Geocoder();
+      geocoder.geocode({ location }, (results, status) => {
+        if (status === 'OK' && results && results[0]) {
+            handleSelect(results[0]);
+        } else {
+            toast({ variant: 'destructive', title: 'Could not get address for this location.' });
+        }
+      });
+    }
+  };
+
+  const handleSelect = (place: google.maps.GeocoderResult) => {
+    let road = '';
+    let city = '';
+    let country = '';
+
+    place.address_components?.forEach(component => {
+        const types = component.types;
+        if (types.includes('route')) {
+            road = component.long_name;
+        }
+        if (types.includes('locality')) {
+            city = component.long_name;
+        } else if (types.includes('postal_town') && !city) {
+            city = component.long_name;
+        } else if (types.includes('administrative_area_level_2') && !city) {
+            city = component.long_name;
+        }
+        if (types.includes('country')) {
+            country = component.long_name;
+        }
+    });
+    
+    const address = [road, city, country].filter(Boolean).join(", ");
+    
+    if (place.geometry && place.geometry.location) {
+      const coords: GeolocationCoordinates = {
+        latitude: place.geometry.location.lat(),
+        longitude: place.geometry.location.lng(),
+        accuracy: 1,
+        altitude: null,
+        altitudeAccuracy: null,
+        heading: null,
+        speed: null,
+      };
+
+      const details: LocationDetails = { road, city, country };
+
+      onLocationSelect(address || place.formatted_address, coords, details);
+      onClose();
+    }
+  };
+
+  useEffect(() => {
+    if (loadError) {
       toast({
         variant: "destructive",
-        title: "Error fetching locations.",
-        description: "Could not fetch locations. Please try again.",
+        title: "Error loading Google Maps",
+        description: "Please check your API key and try again.",
       });
-    } finally {
-      setIsLoading(false);
     }
-  }, [searchQuery, toast]);
-
-  const handleSelect = (suggestion: Suggestion) => {
-    const { road, city, town, village, country } = suggestion.address || {};
-    const cityOrTown = city || town || village || '';
-    let address = [road, cityOrTown, country].filter(Boolean).join(", ");
-    if (!address) {
-      address = suggestion.display_name;
-    }
-
-    const coords: GeolocationCoordinates = {
-      latitude: parseFloat(suggestion.lat),
-      longitude: parseFloat(suggestion.lon),
-      accuracy: 1,
-      altitude: null,
-      altitudeAccuracy: null,
-      heading: null,
-      speed: null,
-    };
-
-    const details: LocationDetails = {
-        road: road || '',
-        city: cityOrTown,
-        country: country || ''
-    };
-
-    onLocationSelect(address, coords, details);
-    onClose();
-  };
+  }, [loadError, toast]);
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-xl">
         <DialogHeader>
           <DialogTitle>Select Location</DialogTitle>
           <DialogDescription>
-            Search for a location to tag your photo.
+            Search for a location or click on the map.
           </DialogDescription>
         </DialogHeader>
-        <div className="py-4 space-y-4">
-          <div className="flex flex-col sm:flex-row gap-2">
-            <Input
-              placeholder="Search for an address..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-            />
-            <Button onClick={handleSearch} disabled={isLoading || !searchQuery} className="w-full sm:w-auto">
-              {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Search"}
-            </Button>
-          </div>
-          <ScrollArea className="h-64 w-full bg-muted rounded-md border">
-            {suggestions.length > 0 ? (
-              <ul className="p-2">
-                {suggestions.map((s) => (
-                  <li
-                    key={s.place_id}
-                    className="p-2 hover:bg-accent rounded-md cursor-pointer text-sm"
-                    onClick={() => handleSelect(s)}
-                  >
-                    {s.display_name}
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <div className="flex items-center justify-center h-full">
-                <p className="text-muted-foreground text-sm text-center p-4">
-                  Search results will appear here.
-                </p>
-              </div>
-            )}
-          </ScrollArea>
-        </div>
+
+        {isLoaded && (
+            <div className="space-y-4">
+                <StandaloneSearchBox
+                    onLoad={(ref) => (searchBoxRef.current = ref)}
+                    onPlacesChanged={onPlacesChanged}
+                >
+                    <Input
+                    type="text"
+                    placeholder="Search for an address..."
+                    className="w-full"
+                    />
+                </StandaloneSearchBox>
+                <div className="relative">
+                    {(isMapLoading || !isLoaded) && (
+                        <div className="absolute inset-0 flex items-center justify-center bg-muted/80 z-10 rounded-lg">
+                            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                        </div>
+                    )}
+                    <GoogleMap
+                        mapContainerStyle={containerStyle}
+                        center={center}
+                        zoom={10}
+                        onLoad={onMapLoad}
+                        onClick={handleMapClick}
+                        options={{
+                            streetViewControl: false,
+                            mapTypeControl: false,
+                        }}
+                    >
+                        {markerPosition && <Marker position={markerPosition} />}
+                    </GoogleMap>
+                </div>
+            </div>
+        )}
+        {loadError && (
+            <div className="text-center text-destructive py-8">
+                Failed to load map. Please check your API key configuration.
+            </div>
+        )}
+        {!isLoaded && !loadError && (
+            <div className="flex justify-center items-center h-[400px]">
+                <Loader2 className="h-8 w-8 animate-spin" />
+            </div>
+        )}
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>
             Cancel

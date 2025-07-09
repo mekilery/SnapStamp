@@ -71,6 +71,9 @@ export function SnapStampClient() {
       async (position) => {
         const { latitude, longitude } = position.coords;
         try {
+          // Using Google's Geocoding API requires an API key and enabling the API in your Google Cloud project.
+          // For simplicity, we'll continue using Nominatim here for the initial fetch.
+          // The MapDialog will use Google Maps for searching.
           const geoResponse = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`);
           const geoData = await geoResponse.json();
           const { road, city, town, village, country } = geoData.address || {};
@@ -102,12 +105,16 @@ export function SnapStampClient() {
     // We only want this to run on the client after hydration
     // to avoid server-client mismatches.
     const timer = setTimeout(() => {
-      setSelectedDateTime(new Date());
-      fetchLocation();
+      if (!selectedDateTime) {
+        setSelectedDateTime(new Date());
+      }
+      if (!locationInfo) {
+        fetchLocation();
+      }
     }, 100);
 
     return () => clearTimeout(timer);
-  }, [fetchLocation]);
+  }, [fetchLocation, selectedDateTime, locationInfo]);
 
   const drawCanvas = useCallback(() => {
     const canvas = canvasRef.current;
