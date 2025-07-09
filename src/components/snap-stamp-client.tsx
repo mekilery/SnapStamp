@@ -165,7 +165,7 @@ export function SnapStampClient() {
       ctx.font = "400 18px Montserrat";
       if (locationText) ctx.fillText(locationText, canvas.width - 20, canvas.height - 25);
     };
-  }, [photoPreviewUrl, currentTime, timeFormat, locationInfo, includeBusiness, aiSuggestion]);
+  }, [photoPreviewUrl, selectedDateTime, timeFormat, locationInfo, includeBusiness, aiSuggestion]);
 
   useEffect(() => {
     drawCanvas();
@@ -278,6 +278,7 @@ export function SnapStampClient() {
               <MapDialog isOpen={isMapOpen} onClose={() => setIsMapOpen(false)} onLocationSelect={(address, coords) => { setLocationInput(address); setLocationInfo({ address, coords }); setIsMapOpen(false); }} />
 
               {photoFile && (
+                <div className="space-y-2">
                   <Label className="flex items-center gap-2"><Building className="h-4 w-4"/> Add a nearby business?</Label>
                   {isLoadingAi ? (
                     <div className="text-sm text-muted-foreground flex items-center gap-2"><Loader2 className="h-4 w-4 animate-spin"/> Thinking...</div>
@@ -296,6 +297,7 @@ export function SnapStampClient() {
                     <p className="text-sm text-muted-foreground">{aiSuggestion?.reason || "No relevant business found to suggest."}</p>
                   )}
                 </div>
+              )}
             </div>
 
             <Separator />
