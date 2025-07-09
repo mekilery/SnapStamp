@@ -10,8 +10,8 @@ import {
   Download,
   Loader2,
   RefreshCw,
-  ExternalLink,
 } from "lucide-react";
+import { MapDialog } from "@/components/ui/map-dialog";
 import { DatePickerWithTime } from "@/components/ui/date-picker-with-time";
 import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
@@ -51,6 +51,7 @@ export function SnapStampClient() {
   const [locationInput, setLocationInput] = useState<string>("");
   const [locationInfo, setLocationInfo] = useState<{ address: string; coords: GeolocationCoordinates; } | null>(null);
   const [isLoadingLocation, setIsLoadingLocation] = useState(false);
+  const [isMapDialogOpen, setMapDialogOpen] = useState(false);
   
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -101,7 +102,7 @@ export function SnapStampClient() {
       ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
 
       const stampText = selectedDateTime ? format(selectedDateTime, timeFormat) : "";
-      let locationText = locationInfo?.address ?? "";
+      let locationText = locationInput;
 
       ctx.font = "600 24px Montserrat";
       ctx.fillStyle = "rgba(0, 0, 0, 0.5)";
@@ -116,7 +117,7 @@ export function SnapStampClient() {
       ctx.font = "400 18px Montserrat";
       if (locationText) ctx.fillText(locationText, canvas.width - 20, canvas.height - 25);
     };
-  }, [photoPreviewUrl, selectedDateTime, timeFormat, locationInfo]);
+  }, [photoPreviewUrl, selectedDateTime, timeFormat, locationInput]);
 
   useEffect(() => {
     drawCanvas();
@@ -142,108 +143,110 @@ export function SnapStampClient() {
     link.click();
   };
 
-  const handleViewMap = () => {
-    if (locationInfo?.coords) {
-      const { latitude, longitude } = locationInfo.coords;
-      const url = `https://www.google.com/maps?q=${latitude},${longitude}`;
-      window.open(url, '_blank');
-    } else {
-      toast({ variant: "destructive", title: "Location not available", description: "Cannot open map without location coordinates." });
-    }
+  const handleLocationSelect = (address: string, coords: GeolocationCoordinates) => {
+    setLocationInput(address);
+    setLocationInfo({ address, coords });
   };
 
+
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-5 gap-8">
-      <div className="lg:col-span-3">
-        <Card className="w-full">
-          <CardHeader>
-            <CardTitle>Photo Preview</CardTitle>
-            <CardDescription>Your final stamped image will appear here.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="aspect-video w-full rounded-lg bg-muted flex items-center justify-center overflow-hidden">
-              {photoPreviewUrl ? (
-                <canvas ref={canvasRef} className="max-w-full h-auto" />
-              ) : (
-                <div className="text-center text-muted-foreground p-8">
-                  <ImageIcon className="mx-auto h-16 w-16" />
-                  <p className="mt-4 font-medium">Upload a photo to get started</p>
+    <>
+      <MapDialog 
+        isOpen={isMapDialogOpen}
+        onClose={() => setMapDialogOpen(false)}
+        onLocationSelect={handleLocationSelect}
+      />
+      <div className="grid grid-cols-1 lg:grid-cols-5 gap-8">
+        <div className="lg:col-span-3">
+          <Card className="w-full">
+            <CardHeader>
+              <CardTitle>Photo Preview</CardTitle>
+              <CardDescription>Your final stamped image will appear here.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="aspect-video w-full rounded-lg bg-muted flex items-center justify-center overflow-hidden">
+                {photoPreviewUrl ? (
+                  <canvas ref={canvasRef} className="max-w-full h-auto" />
+                ) : (
+                  <div className="text-center text-muted-foreground p-8">
+                    <ImageIcon className="mx-auto h-16 w-16" />
+                    <p className="mt-4 font-medium">Upload a photo to get started</p>
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        <div className="lg:col-span-2">
+          <Card>
+            <CardHeader>
+              <CardTitle>Create Your Stamp</CardTitle>
+              <CardDescription>Customize the timestamp and location for your photo.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="space-y-2">
+                <Label className="flex items-center gap-2"><ImageIcon className="h-4 w-4"/> Step 1: Select a Photo</Label>
+                <Button variant="outline" className="w-full" onClick={() => fileInputRef.current?.click()}>
+                  {photoFile ? "Change Photo" : "Upload Photo"}
+                </Button>
+                <input type="file" accept="image/*" ref={fileInputRef} onChange={handlePhotoSelect} className="hidden" />
+                {photoFile && <p className="text-sm text-muted-foreground">Selected: {photoFile.name}</p>}
+              </div>
+              
+              <Separator />
+              
+              <div className="space-y-2">
+                <Label htmlFor="time-format" className="flex items-center gap-2"><Clock className="h-4 w-4"/> Step 2: Choose Time Format</Label>
+                <div className="flex items-center space-x-2">
+                  <DatePickerWithTime date={selectedDateTime} onDateChange={setSelectedDateTime} />
+                  <Select value={timeFormat} onValueChange={setTimeFormat}>
+                  <SelectTrigger id="time-format">
+                    <SelectValue placeholder="Select time format" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {timeFormats.map((format) => (
+                      <SelectItem key={format.value} value={format.value}>
+                        {format.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
                 </div>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+              </div>
+              
+              <Separator />
 
-      <div className="lg:col-span-2">
-        <Card>
-          <CardHeader>
-            <CardTitle>Create Your Stamp</CardTitle>
-            <CardDescription>Customize the timestamp and location for your photo.</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            <div className="space-y-2">
-              <Label className="flex items-center gap-2"><ImageIcon className="h-4 w-4"/> Step 1: Select a Photo</Label>
-              <Button variant="outline" className="w-full" onClick={() => fileInputRef.current?.click()}>
-                {photoFile ? "Change Photo" : "Upload Photo"}
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <Label className="flex items-center gap-2"><MapPin className="h-4 w-4"/> Step 3: Tag Location</Label>
+                  <Button variant="ghost" size="icon" onClick={() => fetchLocation()} disabled={isLoadingLocation} aria-label="Refresh Location">
+                    {isLoadingLocation ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+                  </Button>
+                </div>
+                <div className="flex gap-2">
+                  <Input
+                    placeholder="Fetching location..."
+                    value={locationInput}
+                    onChange={(e) => setLocationInput(e.target.value)}
+                    disabled={isLoadingLocation}
+                  />
+                   <Button variant="outline" onClick={() => setMapDialogOpen(true)}>
+                    Change
+                  </Button>
+                </div>
+              </div>
+
+              <Separator />
+
+              <Button onClick={handleDownload} className="w-full bg-primary-gradient font-semibold text-lg py-6" disabled={!photoFile}>
+                <Download className="mr-2 h-5 w-5" />
+                Download Stamped Photo
               </Button>
-              <input type="file" accept="image/*" ref={fileInputRef} onChange={handlePhotoSelect} className="hidden" />
-              {photoFile && <p className="text-sm text-muted-foreground">Selected: {photoFile.name}</p>}
-            </div>
-            
-            <Separator />
-            
-            <div className="space-y-2">
-              <Label htmlFor="time-format" className="flex items-center gap-2"><Clock className="h-4 w-4"/> Step 2: Choose Time Format</Label>
-              <div className="flex items-center space-x-2">
-                <DatePickerWithTime date={selectedDateTime} onDateChange={setSelectedDateTime} />
-                <Select value={timeFormat} onValueChange={setTimeFormat}>
-                <SelectTrigger id="time-format">
-                  <SelectValue placeholder="Select time format" />
-                </SelectTrigger>
-                <SelectContent>
-                  {timeFormats.map((format) => (
-                    <SelectItem key={format.value} value={format.value}>
-                      {format.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              </div>
-            </div>
-            
-            <Separator />
-
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <Label className="flex items-center gap-2"><MapPin className="h-4 w-4"/> Step 3: Tag Location</Label>
-                <Button variant="ghost" size="icon" onClick={() => fetchLocation()} disabled={isLoadingLocation} aria-label="Refresh Location">
-                  {isLoadingLocation ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
-                </Button>
-              </div>
-              <div className="flex gap-2">
-                <Input
-                  placeholder="Fetching location..."
-                  value={locationInput}
-                  onChange={(e) => setLocationInput(e.target.value)}
-                  disabled={isLoadingLocation}
-                />
-                <Button variant="outline" onClick={handleViewMap} disabled={isLoadingLocation || !locationInfo}>
-                  <ExternalLink className="mr-2 h-4 w-4" />
-                  View Map
-                </Button>
-              </div>
-            </div>
-
-            <Separator />
-
-            <Button onClick={handleDownload} className="w-full bg-primary-gradient font-semibold text-lg py-6" disabled={!photoFile}>
-              <Download className="mr-2 h-5 w-5" />
-              Download Stamped Photo
-            </Button>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        </div>
       </div>
-    </div>
+    </>
   );
 }
