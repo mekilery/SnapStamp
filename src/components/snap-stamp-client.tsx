@@ -200,8 +200,8 @@ export function SnapStampClient() {
         onClose={() => setMapDialogOpen(false)}
         onLocationSelect={handleLocationSelect}
       />
-      <div className="grid grid-cols-1 lg:grid-cols-5 gap-8">
-        <div className="lg:col-span-3">
+      <div className="grid grid-cols-1 md:grid-cols-5 gap-8">
+        <div className="md:col-span-3">
           <Card className="w-full">
             <CardHeader>
               <CardTitle>Photo Preview</CardTitle>
@@ -222,7 +222,7 @@ export function SnapStampClient() {
           </Card>
         </div>
 
-        <div className="lg:col-span-2">
+        <div className="md:col-span-2">
           <Card>
             <CardHeader>
               <CardTitle>Create Your Stamp</CardTitle>
@@ -235,17 +235,17 @@ export function SnapStampClient() {
                   {photoFile ? "Change Photo" : "Upload Photo"}
                 </Button>
                 <input type="file" accept="image/*" ref={fileInputRef} onChange={handlePhotoSelect} className="hidden" />
-                {photoFile && <p className="text-sm text-muted-foreground">Selected: {photoFile.name}</p>}
+                {photoFile && <p className="text-sm text-muted-foreground truncate">Selected: {photoFile.name}</p>}
               </div>
               
               <Separator />
               
               <div className="space-y-2">
                 <Label htmlFor="time-format" className="flex items-center gap-2"><Clock className="h-4 w-4"/> Step 2: Choose Time Format</Label>
-                <div className="flex items-center space-x-2">
+                <div className="flex flex-col sm:flex-row items-center gap-2">
                   <DatePickerWithTime date={selectedDateTime} onDateChange={setSelectedDateTime} />
                   <Select value={timeFormat} onValueChange={setTimeFormat}>
-                  <SelectTrigger id="time-format">
+                  <SelectTrigger id="time-format" className="w-full sm:w-auto flex-grow">
                     <SelectValue placeholder="Select time format" />
                   </SelectTrigger>
                   <SelectContent>
@@ -268,7 +268,7 @@ export function SnapStampClient() {
                     {isLoadingLocation ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
                   </Button>
                 </div>
-                <div className="flex gap-2">
+                <div className="flex flex-col sm:flex-row gap-2">
                   <Input
                     placeholder="Fetching location..."
                     value={locationInput}
@@ -282,8 +282,9 @@ export function SnapStampClient() {
                       });
                     }}
                     disabled={isLoadingLocation}
+                    className="flex-grow"
                   />
-                   <Button variant="outline" onClick={() => setMapDialogOpen(true)}>
+                   <Button variant="outline" onClick={() => setMapDialogOpen(true)} className="w-full sm:w-auto">
                     Change
                   </Button>
                 </div>

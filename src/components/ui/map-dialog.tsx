@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2 } from "lucide-react";
+import { ScrollArea } from "./scroll-area";
 
 interface LocationDetails {
     road: string;
@@ -98,7 +99,7 @@ export function MapDialog({ isOpen, onClose, onLocationSelect }: MapDialogProps)
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Select Location</DialogTitle>
           <DialogDescription>
@@ -106,24 +107,24 @@ export function MapDialog({ isOpen, onClose, onLocationSelect }: MapDialogProps)
           </DialogDescription>
         </DialogHeader>
         <div className="py-4 space-y-4">
-          <div className="flex gap-2">
+          <div className="flex flex-col sm:flex-row gap-2">
             <Input
               placeholder="Search for an address..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
             />
-            <Button onClick={handleSearch} disabled={isLoading || !searchQuery}>
+            <Button onClick={handleSearch} disabled={isLoading || !searchQuery} className="w-full sm:w-auto">
               {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Search"}
             </Button>
           </div>
-          <div className="h-64 w-full bg-muted rounded-md overflow-y-auto">
+          <ScrollArea className="h-64 w-full bg-muted rounded-md border">
             {suggestions.length > 0 ? (
               <ul className="p-2">
                 {suggestions.map((s) => (
                   <li
                     key={s.place_id}
-                    className="p-2 hover:bg-accent rounded-md cursor-pointer"
+                    className="p-2 hover:bg-accent rounded-md cursor-pointer text-sm"
                     onClick={() => handleSelect(s)}
                   >
                     {s.display_name}
@@ -132,12 +133,12 @@ export function MapDialog({ isOpen, onClose, onLocationSelect }: MapDialogProps)
               </ul>
             ) : (
               <div className="flex items-center justify-center h-full">
-                <p className="text-muted-foreground">
+                <p className="text-muted-foreground text-sm text-center p-4">
                   Search results will appear here.
                 </p>
               </div>
             )}
-          </div>
+          </ScrollArea>
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>
