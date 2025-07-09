@@ -12,6 +12,8 @@ import {
   RefreshCw,
   Lightbulb,
 } from "lucide-react";
+import { DatePickerWithTime } from "@/components/ui/date-picker-with-time";
+import { MapDialog } from "@/components/ui/map-dialog";
 import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
 import {
@@ -31,6 +33,7 @@ import {
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
+import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { determineNearbyBusiness } from "@/ai/flows/determine-nearby-business";
 import type { DetermineNearbyBusinessOutput } from "@/ai/flows/determine-nearby-business";
@@ -46,10 +49,12 @@ export function SnapStampClient() {
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [photoPreviewUrl, setPhotoPreviewUrl] = useState<string | null>(null);
   const [photoDataUri, setPhotoDataUri] = useState<string | null>(null);
-  
-  const [currentTime, setCurrentTime] = useState(() => new Date());
+
+  const [selectedDateTime, setSelectedDateTime] = useState<Date | undefined>(() => new Date());
   const [timeFormat, setTimeFormat] = useState(timeFormats[0].value);
-  
+
+  const [locationInput, setLocationInput] = useState<string>("");
+  const [isMapOpen, setIsMapOpen] = useState(false);
   const [locationInfo, setLocationInfo] = useState<{ address: string; coords: GeolocationCoordinates; } | null>(null);
   const [isLoadingLocation, setIsLoadingLocation] = useState(false);
   const [nearbyBusinesses, setNearbyBusinesses] = useState<string[]>([]);
@@ -62,12 +67,7 @@ export function SnapStampClient() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
-  useEffect(() => {
-    const timer = setInterval(() => setCurrentTime(new Date()), 1000);
-    return () => clearInterval(timer);
-  }, []);
-  
-  const fetchLocation = useCallback(() => {
+  const fetchLocation = useCallback((coords?: GeolocationCoordinates) => {
     setIsLoadingLocation(true);
     setAiSuggestion(null);
     navigator.geolocation.getCurrentPosition(
@@ -77,6 +77,7 @@ export function SnapStampClient() {
           const geoResponse = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`);
           const geoData = await geoResponse.json();
           const address = geoData.display_name || "Unknown location";
+          setLocationInput(address);
           setLocationInfo({ address, coords: position.coords });
 
           const overpassUrl = `https://overpass-api.de/api/interpreter?data=[out:json];node(around:250,${latitude},${longitude})[amenity~"^(restaurant|cafe|pub|bar|fast_food|hotel|shop)$"];out%2020;`;
@@ -94,7 +95,7 @@ export function SnapStampClient() {
       (error) => {
         toast({ variant: "destructive", title: "Location Error", description: error.message });
         setIsLoadingLocation(false);
-      }
+      }, { enableHighAccuracy: true }
     );
   }, [toast]);
 
@@ -123,7 +124,7 @@ export function SnapStampClient() {
   }, [photoDataUri, locationInfo, nearbyBusinesses, toast]);
 
   useEffect(() => {
-    if (photoDataUri && locationInfo && nearbyBusinesses.length > 0) {
+    if (photoDataUri && locationInfo?.address && nearbyBusinesses.length > 0) {
       runAiSuggestion();
     }
   }, [photoDataUri, locationInfo, nearbyBusinesses.length, runAiSuggestion]);
@@ -145,7 +146,7 @@ export function SnapStampClient() {
 
       ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
 
-      const stampText = format(currentTime, timeFormat);
+      const stampText = selectedDateTime ? format(selectedDateTime, timeFormat) : "";
       let locationText = locationInfo?.address ?? "";
       if (includeBusiness && aiSuggestion?.includeBusiness) {
         locationText = `${aiSuggestion.includeBusiness}, ${locationText}`;
@@ -159,10 +160,10 @@ export function SnapStampClient() {
       ctx.textAlign = "right";
       ctx.textBaseline = "bottom";
       
-      ctx.fillText(stampText, canvas.width - 20, canvas.height - 55);
+      if (stampText) ctx.fillText(stampText, canvas.width - 20, canvas.height - 55);
       
       ctx.font = "400 18px Montserrat";
-      ctx.fillText(locationText, canvas.width - 20, canvas.height - 25);
+      if (locationText) ctx.fillText(locationText, canvas.width - 20, canvas.height - 25);
     };
   }, [photoPreviewUrl, currentTime, timeFormat, locationInfo, includeBusiness, aiSuggestion]);
 
@@ -239,7 +240,9 @@ export function SnapStampClient() {
             
             <div className="space-y-2">
               <Label htmlFor="time-format" className="flex items-center gap-2"><Clock className="h-4 w-4"/> Step 2: Choose Time Format</Label>
-              <Select value={timeFormat} onValueChange={setTimeFormat}>
+              <div className="flex items-center space-x-2">
+                <DatePickerWithTime date={selectedDateTime} onDateChange={setSelectedDateTime} />
+                <Select value={timeFormat} onValueChange={setTimeFormat}>
                 <SelectTrigger id="time-format">
                   <SelectValue placeholder="Select time format" />
                 </SelectTrigger>
@@ -251,6 +254,7 @@ export function SnapStampClient() {
                   ))}
                 </SelectContent>
               </Select>
+              </div>
             </div>
             
             <Separator />
@@ -259,14 +263,21 @@ export function SnapStampClient() {
               <div className="flex items-center justify-between">
                 <Label className="flex items-center gap-2"><MapPin className="h-4 w-4"/> Step 3: Tag Location</Label>
                 <Button variant="ghost" size="icon" onClick={fetchLocation} disabled={isLoadingLocation} aria-label="Refresh Location">
-                  {isLoadingLocation ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4"/>}
+                  {isLoadingLocation ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
                 </Button>
               </div>
-              <p className="text-sm text-muted-foreground h-10">
-                {isLoadingLocation ? "Getting your location..." : locationInfo?.address || "Location not available."}
-              </p>
+              <div className="flex gap-2">
+                <Input
+                  placeholder="Enter location or use map"
+                  value={locationInput}
+                  onChange={(e) => setLocationInput(e.target.value)}
+                  disabled={isLoadingLocation}
+                />
+                <Button variant="outline" onClick={() => setIsMapOpen(true)} disabled={isLoadingLocation}>Map</Button>
+              </div>
+              <MapDialog isOpen={isMapOpen} onClose={() => setIsMapOpen(false)} onLocationSelect={(address, coords) => { setLocationInput(address); setLocationInfo({ address, coords }); setIsMapOpen(false); }} />
+
               {photoFile && (
-                <div className="space-y-2">
                   <Label className="flex items-center gap-2"><Building className="h-4 w-4"/> Add a nearby business?</Label>
                   {isLoadingAi ? (
                     <div className="text-sm text-muted-foreground flex items-center gap-2"><Loader2 className="h-4 w-4 animate-spin"/> Thinking...</div>
@@ -285,7 +296,6 @@ export function SnapStampClient() {
                     <p className="text-sm text-muted-foreground">{aiSuggestion?.reason || "No relevant business found to suggest."}</p>
                   )}
                 </div>
-              )}
             </div>
 
             <Separator />
