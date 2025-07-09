@@ -92,19 +92,22 @@ export function SnapStampClient() {
         try {
           const geoResponse = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`);
           const geoData = await geoResponse.json();
-          const { road, city, town, village, country } = geoData.address || {};
-          const cityOrTown = city || town || village || '';
-          const address = [road, cityOrTown, country].filter(Boolean).join(", ");
+          const addressDetails = geoData.address || {};
+          const road = addressDetails.road || addressDetails.street || "";
+          const city = addressDetails.city || addressDetails.town || addressDetails.village || "";
+          const country = addressDetails.country || "";
+          const address = [road, city, country].filter(Boolean).join(", ");
           
           setLocationInput(address || geoData.display_name || "Unknown location");
           setLocationInfo({ address: address, coords: position.coords });
           setLocationDetails({
-            road: road || '',
-            city: cityOrTown,
-            country: country || ''
+            road: road,
+            city: city,
+            country: country
           });
 
         } catch (error) {
+          console.error("Error fetching location:", error)
           toast({ variant: "destructive", title: "Error fetching location details." });
         } finally {
           setIsLoadingLocation(false);
@@ -148,6 +151,8 @@ export function SnapStampClient() {
       ctx.fillStyle = "white";
       ctx.textAlign = "right";
       ctx.textBaseline = "bottom";
+      ctx.shadowColor = "transparent";
+      ctx.shadowBlur = 0;
 
       let currentY = canvas.height - 20;
       const lineHeight = 30;
@@ -171,6 +176,8 @@ export function SnapStampClient() {
       
       // Draw timestamp
       if (stampText) {
+        currentY += lineHeight;
+        currentY -= 5; 
         ctx.font = "600 24px Arial";
         ctx.fillText(stampText, canvas.width - 20, currentY);
       }
@@ -229,8 +236,6 @@ export function SnapStampClient() {
 
   const handleTimeChange = (newTime: Date | undefined) => {
     if (!newTime) {
-      // If time is cleared, what should happen?
-      // For now, let's just ignore it. If we set to undefined, the whole thing disappears.
       return;
     }
     const current = selectedDateTime || new Date();
