@@ -45,7 +45,7 @@ export function SnapStampClient() {
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [photoPreviewUrl, setPhotoPreviewUrl] = useState<string | null>(null);
   
-  const [selectedDateTime, setSelectedDateTime] = useState<Date | undefined>();
+  const [selectedDateTime, setSelectedDateTime] = useState<Date | undefined>(undefined);
   const [timeFormat, setTimeFormat] = useState(timeFormats[0].value);
 
   const [locationInput, setLocationInput] = useState<string>("");
@@ -65,7 +65,12 @@ export function SnapStampClient() {
         try {
           const geoResponse = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`);
           const geoData = await geoResponse.json();
-          const address = geoData.display_name || "Unknown location";
+          const { road, city, town, village, country } = geoData.address || {};
+          const cityOrTown = city || town || village;
+          let address = [road, cityOrTown, country].filter(Boolean).join(", ");
+          if (!address) {
+            address = geoData.display_name || "Unknown location";
+          }
           setLocationInput(address);
           setLocationInfo({ address, coords: position.coords });
         } catch (error) {
@@ -82,6 +87,8 @@ export function SnapStampClient() {
   }, [toast]);
 
   useEffect(() => {
+    // We only want this to run on the client after hydration
+    // to avoid server-client mismatches.
     setSelectedDateTime(new Date());
     fetchLocation();
   }, [fetchLocation]);
@@ -121,8 +128,10 @@ export function SnapStampClient() {
   }, [photoPreviewUrl, selectedDateTime, timeFormat, locationInput]);
 
   useEffect(() => {
-    drawCanvas();
-  }, [drawCanvas]);
+    if (photoPreviewUrl) {
+      drawCanvas();
+    }
+  }, [drawCanvas, photoPreviewUrl]);
   
   const handlePhotoSelect = (e: ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -144,7 +153,7 @@ export function SnapStampClient() {
     link.click();
   };
 
-  const handleLocationSelect = (address: string, coords: GeolocationCoordinates) => {
+  const handleLocationSelect = async (address: string, coords: GeolocationCoordinates) => {
     setLocationInput(address);
     setLocationInfo({ address, coords });
     setMapDialogOpen(false);
@@ -157,7 +166,6 @@ export function SnapStampClient() {
         isOpen={isMapDialogOpen}
         onClose={() => setMapDialogOpen(false)}
         onLocationSelect={handleLocationSelect}
-        currentLocation={locationInfo}
       />
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-8">
         <div className="lg:col-span-3">
