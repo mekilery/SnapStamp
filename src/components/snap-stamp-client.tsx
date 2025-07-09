@@ -349,7 +349,7 @@ export function SnapStampClient() {
 
               <Button onClick={handleDownload} className="w-full bg-primary-gradient font-semibold text-lg py-6" disabled={!photoFile}>
                 <Download className="mr-2 h-5 w-5" />
-                Download Stamped Photo
+                Download
               </Button>
             </CardContent>
           </Card>
