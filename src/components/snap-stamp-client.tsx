@@ -47,6 +47,24 @@ interface LocationDetails {
     country: string;
 }
 
+const defaultLocation = {
+  address: "Manama, Bahrain",
+  coords: {
+    latitude: 26.2285,
+    longitude: 50.586,
+    accuracy: 1,
+    altitude: null,
+    altitudeAccuracy: null,
+    heading: null,
+    speed: null,
+  },
+  details: {
+    road: "",
+    city: "Manama",
+    country: "Bahrain",
+  },
+};
+
 export function SnapStampClient() {
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [photoPreviewUrl, setPhotoPreviewUrl] = useState<string | null>(null);
@@ -54,9 +72,9 @@ export function SnapStampClient() {
   const [selectedDateTime, setSelectedDateTime] = useState<Date | undefined>(undefined);
   const [timeFormat, setTimeFormat] = useState(timeFormats[0].value);
 
-  const [locationInput, setLocationInput] = useState<string>("");
-  const [locationDetails, setLocationDetails] = useState<LocationDetails | null>(null);
-  const [locationInfo, setLocationInfo] = useState<{ address: string; coords: GeolocationCoordinates; } | null>(null);
+  const [locationInput, setLocationInput] = useState<string>(defaultLocation.address);
+  const [locationDetails, setLocationDetails] = useState<LocationDetails | null>(defaultLocation.details);
+  const [locationInfo, setLocationInfo] = useState<{ address: string; coords: GeolocationCoordinates; } | null>(defaultLocation);
 
   const [isLoadingLocation, setIsLoadingLocation] = useState(false);
   const [isMapDialogOpen, setMapDialogOpen] = useState(false);
@@ -71,9 +89,6 @@ export function SnapStampClient() {
       async (position) => {
         const { latitude, longitude } = position.coords;
         try {
-          // Using Google's Geocoding API requires an API key and enabling the API in your Google Cloud project.
-          // For simplicity, we'll continue using Nominatim here for the initial fetch.
-          // The MapDialog will use Google Maps for searching.
           const geoResponse = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`);
           const geoData = await geoResponse.json();
           const { road, city, town, village, country } = geoData.address || {};
@@ -102,19 +117,14 @@ export function SnapStampClient() {
   }, [toast]);
 
   useEffect(() => {
-    // We only want this to run on the client after hydration
-    // to avoid server-client mismatches.
     const timer = setTimeout(() => {
       if (!selectedDateTime) {
         setSelectedDateTime(new Date());
       }
-      if (!locationInfo) {
-        fetchLocation();
-      }
     }, 100);
 
     return () => clearTimeout(timer);
-  }, [fetchLocation, selectedDateTime, locationInfo]);
+  }, [selectedDateTime]);
 
   const drawCanvas = useCallback(() => {
     const canvas = canvasRef.current;
@@ -206,6 +216,7 @@ export function SnapStampClient() {
         isOpen={isMapDialogOpen}
         onClose={() => setMapDialogOpen(false)}
         onLocationSelect={handleLocationSelect}
+        initialCoords={locationInfo?.coords}
       />
       <div className="grid grid-cols-1 md:grid-cols-5 gap-8">
         <div className="md:col-span-3">

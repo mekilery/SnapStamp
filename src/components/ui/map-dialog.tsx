@@ -13,7 +13,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2 } from "lucide-react";
-import { ScrollArea } from "./scroll-area";
 import { GoogleMap, useJsApiLoader, StandaloneSearchBox, Marker } from "@react-google-maps/api";
 
 interface LocationDetails {
@@ -26,6 +25,7 @@ interface MapDialogProps {
   isOpen: boolean;
   onClose: () => void;
   onLocationSelect: (address: string, coords: GeolocationCoordinates, details: LocationDetails) => void;
+  initialCoords?: GeolocationCoordinates | null;
 }
 
 const containerStyle = {
@@ -36,9 +36,11 @@ const containerStyle = {
 
 const libraries: "places"[] = ["places"];
 
-export function MapDialog({ isOpen, onClose, onLocationSelect }: MapDialogProps) {
+const defaultCenter = { lat: 26.2285, lng: 50.5860 }; // Manama, Bahrain
+
+export function MapDialog({ isOpen, onClose, onLocationSelect, initialCoords }: MapDialogProps) {
   const [map, setMap] = useState<google.maps.Map | null>(null);
-  const [center, setCenter] = useState({ lat: 51.5072, lng: -0.1276 });
+  const [center, setCenter] = useState(defaultCenter);
   const [markerPosition, setMarkerPosition] = useState<{lat: number, lng: number} | null>(null);
   const searchBoxRef = useRef<google.maps.places.SearchBox | null>(null);
   const [isMapLoading, setMapLoading] = useState(true);
@@ -53,7 +55,12 @@ export function MapDialog({ isOpen, onClose, onLocationSelect }: MapDialogProps)
   const onMapLoad = useCallback((mapInstance: google.maps.Map) => {
     setMap(mapInstance);
     setMapLoading(false);
-  }, []);
+    if(initialCoords) {
+        const newCenter = { lat: initialCoords.latitude, lng: initialCoords.longitude };
+        setCenter(newCenter);
+        setMarkerPosition(newCenter);
+    }
+  }, [initialCoords]);
 
   const onPlacesChanged = () => {
     if (searchBoxRef.current && map) {
@@ -143,6 +150,20 @@ export function MapDialog({ isOpen, onClose, onLocationSelect }: MapDialogProps)
       });
     }
   }, [loadError, toast]);
+  
+  useEffect(() => {
+    if (isOpen && initialCoords) {
+        const newCenter = { lat: initialCoords.latitude, lng: initialCoords.longitude };
+        setCenter(newCenter);
+        setMarkerPosition(newCenter);
+        if(map) {
+            map.panTo(newCenter);
+        }
+    } else if (isOpen) {
+        setCenter(defaultCenter);
+        setMarkerPosition(null);
+    }
+  }, [isOpen, initialCoords, map]);
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
