@@ -41,6 +41,12 @@ const timeFormats = [
   { value: "yyyy-MM-dd HH:mm:ss", label: "2024-08-23 16:30:00" },
 ];
 
+interface LocationDetails {
+    road: string;
+    city: string;
+    country: string;
+}
+
 export function SnapStampClient() {
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [photoPreviewUrl, setPhotoPreviewUrl] = useState<string | null>(null);
@@ -49,7 +55,9 @@ export function SnapStampClient() {
   const [timeFormat, setTimeFormat] = useState(timeFormats[0].value);
 
   const [locationInput, setLocationInput] = useState<string>("");
+  const [locationDetails, setLocationDetails] = useState<LocationDetails | null>(null);
   const [locationInfo, setLocationInfo] = useState<{ address: string; coords: GeolocationCoordinates; } | null>(null);
+
   const [isLoadingLocation, setIsLoadingLocation] = useState(false);
   const [isMapDialogOpen, setMapDialogOpen] = useState(false);
   
@@ -66,13 +74,17 @@ export function SnapStampClient() {
           const geoResponse = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`);
           const geoData = await geoResponse.json();
           const { road, city, town, village, country } = geoData.address || {};
-          const cityOrTown = city || town || village;
-          let address = [road, cityOrTown, country].filter(Boolean).join(", ");
-          if (!address) {
-            address = geoData.display_name || "Unknown location";
-          }
-          setLocationInput(address);
-          setLocationInfo({ address, coords: position.coords });
+          const cityOrTown = city || town || village || '';
+          const address = [road, cityOrTown, country].filter(Boolean).join(", ");
+          
+          setLocationInput(address || geoData.display_name || "Unknown location");
+          setLocationInfo({ address: address, coords: position.coords });
+          setLocationDetails({
+            road: road || '',
+            city: cityOrTown,
+            country: country || ''
+          });
+
         } catch (error) {
           toast({ variant: "destructive", title: "Error fetching location details." });
         } finally {
@@ -89,8 +101,12 @@ export function SnapStampClient() {
   useEffect(() => {
     // We only want this to run on the client after hydration
     // to avoid server-client mismatches.
-    setSelectedDateTime(new Date());
-    fetchLocation();
+    const timer = setTimeout(() => {
+      setSelectedDateTime(new Date());
+      fetchLocation();
+    }, 100);
+
+    return () => clearTimeout(timer);
   }, [fetchLocation]);
 
   const drawCanvas = useCallback(() => {
@@ -110,22 +126,38 @@ export function SnapStampClient() {
       ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
 
       const stampText = selectedDateTime ? format(selectedDateTime, timeFormat) : "";
-      let locationText = locationInput;
-
-      ctx.font = "600 24px Montserrat";
-      ctx.fillStyle = "rgba(0, 0, 0, 0.5)";
-      ctx.fillRect(0, canvas.height - 100, canvas.width, 100);
       
       ctx.fillStyle = "white";
       ctx.textAlign = "right";
       ctx.textBaseline = "bottom";
+
+      let currentY = canvas.height - 20;
+      const lineHeight = 30;
+
+      // Draw location
+      if (locationDetails) {
+        ctx.font = "400 20px Montserrat";
+        if (locationDetails.country) {
+            ctx.fillText(locationDetails.country, canvas.width - 20, currentY);
+            currentY -= lineHeight;
+        }
+        if (locationDetails.city) {
+            ctx.fillText(locationDetails.city, canvas.width - 20, currentY);
+            currentY -= lineHeight;
+        }
+        if (locationDetails.road) {
+            ctx.fillText(locationDetails.road, canvas.width - 20, currentY);
+            currentY -= lineHeight;
+        }
+      }
       
-      if (stampText) ctx.fillText(stampText, canvas.width - 20, canvas.height - 55);
-      
-      ctx.font = "400 18px Montserrat";
-      if (locationText) ctx.fillText(locationText, canvas.width - 20, canvas.height - 25);
+      // Draw timestamp
+      if (stampText) {
+        ctx.font = "600 24px Montserrat";
+        ctx.fillText(stampText, canvas.width - 20, currentY);
+      }
     };
-  }, [photoPreviewUrl, selectedDateTime, timeFormat, locationInput]);
+  }, [photoPreviewUrl, selectedDateTime, timeFormat, locationDetails]);
 
   useEffect(() => {
     if (photoPreviewUrl) {
@@ -153,9 +185,10 @@ export function SnapStampClient() {
     link.click();
   };
 
-  const handleLocationSelect = async (address: string, coords: GeolocationCoordinates) => {
+  const handleLocationSelect = async (address: string, coords: GeolocationCoordinates, details: LocationDetails) => {
     setLocationInput(address);
     setLocationInfo({ address, coords });
+    setLocationDetails(details);
     setMapDialogOpen(false);
   };
 
@@ -239,7 +272,15 @@ export function SnapStampClient() {
                   <Input
                     placeholder="Fetching location..."
                     value={locationInput}
-                    onChange={(e) => setLocationInput(e.target.value)}
+                    onChange={(e) => {
+                      setLocationInput(e.target.value);
+                      const parts = e.target.value.split(', ');
+                      setLocationDetails({
+                        road: parts[0] || '',
+                        city: parts[1] || '',
+                        country: parts[2] || '',
+                      });
+                    }}
                     disabled={isLoadingLocation}
                   />
                    <Button variant="outline" onClick={() => setMapDialogOpen(true)}>

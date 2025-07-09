@@ -14,10 +14,16 @@ import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2 } from "lucide-react";
 
+interface LocationDetails {
+    road: string;
+    city: string;
+    country: string;
+}
+
 interface MapDialogProps {
   isOpen: boolean;
   onClose: () => void;
-  onLocationSelect: (address: string, coords: GeolocationCoordinates) => void;
+  onLocationSelect: (address: string, coords: GeolocationCoordinates, details: LocationDetails) => void;
 }
 
 interface Suggestion {
@@ -25,6 +31,13 @@ interface Suggestion {
   display_name: string;
   lat: string;
   lon: string;
+  address: {
+    road?: string;
+    city?: string;
+    town?: string;
+    village?: string;
+    country?: string;
+  }
 }
 
 export function MapDialog({ isOpen, onClose, onLocationSelect }: MapDialogProps) {
@@ -57,7 +70,7 @@ export function MapDialog({ isOpen, onClose, onLocationSelect }: MapDialogProps)
 
   const handleSelect = (suggestion: Suggestion) => {
     const { road, city, town, village, country } = suggestion.address || {};
-    const cityOrTown = city || town || village;
+    const cityOrTown = city || town || village || '';
     let address = [road, cityOrTown, country].filter(Boolean).join(", ");
     if (!address) {
       address = suggestion.display_name;
@@ -72,7 +85,14 @@ export function MapDialog({ isOpen, onClose, onLocationSelect }: MapDialogProps)
       heading: null,
       speed: null,
     };
-    onLocationSelect(address, coords);
+
+    const details: LocationDetails = {
+        road: road || '',
+        city: cityOrTown,
+        country: country || ''
+    };
+
+    onLocationSelect(address, coords, details);
     onClose();
   };
 
