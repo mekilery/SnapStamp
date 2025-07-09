@@ -154,7 +154,7 @@ export function SnapStampClient() {
 
       // Draw location
       if (locationDetails) {
-        ctx.font = "400 20px Montserrat";
+        ctx.font = "400 20px Arial";
         if (locationDetails.country) {
             ctx.fillText(locationDetails.country, canvas.width - 20, currentY);
             currentY -= lineHeight;
@@ -171,7 +171,7 @@ export function SnapStampClient() {
       
       // Draw timestamp
       if (stampText) {
-        ctx.font = "600 24px Montserrat";
+        ctx.font = "600 24px Arial";
         ctx.fillText(stampText, canvas.width - 20, currentY);
       }
     };
